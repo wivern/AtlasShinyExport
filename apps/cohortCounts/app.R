@@ -1,45 +1,47 @@
-
 library(shiny)
 library(dplyr)
+library(echarts4r)
 
-# create a dataframe with all the app data in it using saved webapi json files
-treemapData <- lapply(list.files("data"), jsonlite::read_json) # %>% 
-  # combine data into a dataframe
+source("read_data.R")
+cohort_name <- readr::read_file(file.path("data", "cohort_name.txt"))
+app_data <- read_data(path = "data")
+
+# get the list of unique data source keys
+data_sources <- list.files("data", pattern = ".json$") %>% 
+  stringr::str_remove("_by_(person|event).json$") %>% 
+  stringr::str_unique()
 
 ui <- fluidPage(
 
-    titlePanel("Cohort Inclusion Report"),
-    p(em("[PIONEER FUP] Newly diagnosed prostate cancer initiated delayed curative trt"), 
-      style = "margin-bottom: 15px"),
+  titlePanel("Cohort Inclusion Report"),
+    p(em(cohort_name), style = "margin-bottom: 15px"),
 
-    sidebarLayout(
-        sidebarPanel(
-            selectInput("datasource", "Data Source",
-                        choices = c("STARR-DEID 1% LITE 08/13/2023" = "starr1pct",
-                                    "STARR-DEID LITE 08/13/2023" = "starr",
-                                    "SynPUF 2M" = "synpuf"))
-        ),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("datasource", "Data Source", choices = data_sources)
+    ),
 
-        mainPanel(
-          tabsetPanel(
-            tabPanel("By Person", treemapOutput('treemapByPerson')),
-            tabPanel("By Event", treemapOutput('treemapByEvent'))
-        )
+    mainPanel(
+      tabsetPanel(
+        tabPanel("By Person", echarts4rOutput('treemapByPerson')),
+        tabPanel("By Event", echarts4rOutput('treemapByEvent'))
+      )
     )
   )
 )
 
 server <- function(input, output) {
-  output$treemapByPerson <- renderTreemap(
-    treemapData %>% 
-      filter(group = "by person") %>% 
-      treemap(treemapDatainclude_table = TRUE)
+  
+  output$treemapByPerson <- renderEcharts4r(
+    app_data[[input$datasource]][["person"]]$treemap_table %>% 
+      e_charts() %>% 
+      e_treemap() 
   )
   
-  output$treemapByEvent <- renderTreemap(
-    treemapData %>% 
-      filter(group = "by person") %>% 
-      treemap(treemapDatainclude_table = TRUE)
+  output$treemapByEvent <- renderEcharts4r(
+    app_data[[input$datasource]][["event"]]$treemap_table %>% 
+      e_charts() %>% 
+      e_treemap() 
   )
 }
 
