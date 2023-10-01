@@ -14,3 +14,10 @@ df |>
   console.log(params.name);"))
 
 
+series: [
+  {
+    roam: 'move',
+    nodeClick: false,
+    ...
+  }
+]

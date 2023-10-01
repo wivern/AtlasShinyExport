@@ -1,6 +1,8 @@
 
 # function to read in app data from saved json files extracted from Atlas/WebAPI
 # `path` argument should point to the folder where the json files are stored
+
+path = "data"
 read_data <- function(path) {
   require(dplyr)
   
@@ -27,7 +29,9 @@ read_data <- function(path) {
         percent_included = x$summary$percentMatched)
       
       app_data[[d]][[e]][["inclusion_table"]] <- dplyr::tibble(value = x$inclusionRuleStats) %>% 
-        tidyr::unnest_wider(col = value)
+        tidyr::unnest_wider(col = value) %>% 
+        mutate(id = id + 1) %>% # start ids at 1 instead of 0
+        select(ID = id, `Inclusion Rule` = name, Count = countSatisfying, Percent = percentSatisfying)
       
       app_data[[d]][[e]][["treemap_table"]] <- x$treemapData %>% 
         jsonlite::fromJSON(simplifyVector = FALSE) %>% 
@@ -64,6 +68,17 @@ tidy_treemap_data <- function(treemap_data) {
   # call the recursive function to populate the vectors
   recurse(treemap_data)
   
+  # convert name encoding into a comma separted list of inclusion rule IDs
+  name2 <- purrr::map_chr(name, function(encoded_name) {
+    stringr::str_split_1(encoded_name, "") %>% 
+      as.numeric() %>% 
+      {.*seq_along(.)} %>% 
+      as.character() %>% 
+      stringr::str_subset("0", negate = T) %>% 
+      stringr::str_c(collapse = ",") %>% 
+      {ifelse(. == "", "None", .)}
+  })
+  
   # return a dataframe with the counts of each partition
-  return(dplyr::tibble(name, value = size))
+  return(dplyr::tibble(name = name2, value = size))
 }
