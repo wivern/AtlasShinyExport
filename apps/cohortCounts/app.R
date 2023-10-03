@@ -50,12 +50,18 @@ server <- function(input, output) {
     as.numeric(stringr::str_split(input$box_click$name, ",")[[1]])
   })
   
+  # observeEvent({input$datasource;input$level}, {
+  #   print("running")
+  #   
+  #   print(input$box_click$name)
+  #   print(rows_to_highlight())
+  # })
+  
   output$count_in_selected_subset_text <- renderText({
     if(!isTruthy(input$box_click$name)) return(NULL)
     req(input$box_click$name)
     
     x <- app_data[[input$datasource]][[input$level]]$treemap_table %>% 
-    # x <- app_data[["synpuf-110k"]][["person"]]$treemap_table %>% 
       mutate(total = sum(value), percent = round(100*value/total, 2)) %>% 
       filter(name == input$box_click$name) %>% 
       mutate(value = format(value, big.mark=',', scientific = FALSE),
@@ -82,12 +88,20 @@ server <- function(input, output) {
   )
   
   output$treemap <- renderEcharts4r({
+    # shinyjs::runjs("Shiny.setInputValue('box_click', {name: false})")
+    shinyjs::runjs("Shiny.setInputValue('box_click', null)")
+    
     app_data[[input$datasource]][[input$level]]$treemap_table %>% 
       e_charts() %>% 
       e_treemap(roam = F) %>% 
       e_on(query = ".", 
            handler = "function(params) {Shiny.setInputValue('box_click', {name: params.name});}")
   })
+  
+  # observe({
+  #   req(input$box_click$name)
+  #   print(input$box_click$name)
+  #   })
   
   output$upper_summary_text <- renderText({
     s <- app_data[[input$datasource]][[input$level]]$summary_table 
