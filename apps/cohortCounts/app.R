@@ -34,7 +34,8 @@ ui <- fluidPage(
   fluidRow(column(width = 12, textOutput("upper_summary_text"))),
 
   fluidRow(
-    column(width = 6, gt::gt_output("inclusion_table")),
+    column(width = 6, gt::gt_output("inclusion_table"),
+           textOutput("count_in_selected_subset_text")),
     column(width = 6, echarts4rOutput('treemap'))
   ),
   
@@ -47,6 +48,20 @@ server <- function(input, output) {
   rows_to_highlight <- reactive({
     if(!isTruthy(input$box_click$name) || input$box_click$name == "None") return(FALSE)
     as.numeric(stringr::str_split(input$box_click$name, ",")[[1]])
+  })
+  
+  output$count_in_selected_subset_text <- renderText({
+    if(!isTruthy(input$box_click$name)) return(NULL)
+    req(input$box_click$name)
+    
+    x <- app_data[[input$datasource]][[input$level]]$treemap_table %>% 
+    # x <- app_data[["synpuf-110k"]][["person"]]$treemap_table %>% 
+      mutate(total = sum(value), percent = round(100*value/total, 2)) %>% 
+      filter(name == input$box_click$name) %>% 
+      mutate(value = format(value, big.mark=',', scientific = FALSE),
+             percent = paste0(percent, "%"))
+      
+      glue::glue("Number of {input$level}s matching inclusion rules [{input$box_click$name}]: {x$value} ({x$percent})")
   })
   
   output$summary_table <- gt::render_gt(
