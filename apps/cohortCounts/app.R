@@ -12,7 +12,7 @@ data_sources <- list.files("data", pattern = ".json$") %>%
   stringr::str_unique()
 
 ui <- fluidPage(
-  
+  shinyjs::useShinyjs(),
   fluidRow(
     column(width = 6, titlePanel("Cohort Inclusion Report")),
     column(width = 6, selectInput("datasource", "Data Source", choices = data_sources), style = "margin-top: 15px")
@@ -88,8 +88,7 @@ server <- function(input, output) {
   )
   
   output$treemap <- renderEcharts4r({
-    # shinyjs::runjs("Shiny.setInputValue('box_click', {name: false})")
-    shinyjs::runjs("Shiny.setInputValue('box_click', null)")
+    shinyjs::runjs("Shiny.setInputValue('box_click', {name: false})")
     
     app_data[[input$datasource]][[input$level]]$treemap_table %>% 
       e_charts() %>% 
