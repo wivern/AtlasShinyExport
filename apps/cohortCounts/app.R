@@ -34,9 +34,8 @@ ui <- fluidPage(
   fluidRow(column(width = 12, textOutput("upper_summary_text"))),
 
   fluidRow(
-    column(width = 6, gt::gt_output("inclusion_table"),
-           textOutput("count_in_selected_subset_text")),
-    column(width = 6, echarts4rOutput('treemap'))
+    column(width = 6, gt::gt_output("inclusion_table")),
+    column(width = 6, textOutput("count_in_selected_subset_text"), echarts4rOutput('treemap'))
   ),
   
   fluidRow(column(width = 12, textOutput("lower_summary_text"))),
@@ -97,8 +96,10 @@ server <- function(input, output) {
     app_data[[input$datasource]][[input$level]]$treemap_table %>% 
       e_charts() %>% 
       e_treemap(roam = F) %>% 
-      e_on(query = ".", 
-           handler = "function(params) {Shiny.setInputValue('box_click', {name: params.name});}")
+      # e_on(query = ".", handler = "function(params) {Shiny.setInputValue('box_click', {name: params.name});}") %>% 
+      e_on(query = ".", handler = "function(params) {Shiny.setInputValue('box_click', {name: params.name});}", event = "mouseover") %>% 
+      e_on(query = ".", handler = "function(params) {Shiny.setInputValue('box_click', {name: false});}", event = "mouseout")
+      
   })
   
   # observe({
