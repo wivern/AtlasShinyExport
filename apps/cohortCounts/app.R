@@ -67,7 +67,11 @@ server <- function(input, output) {
       mutate(value = format(value, big.mark=',', scientific = FALSE),
              percent = paste0(percent, "%"))
       
+    if (input$box_click$name == "None") {
+      glue::glue("Number of {input$level}s not matching any inclusion rules: {x$value} ({x$percent})")
+    } else {
       glue::glue("Number of {input$level}s matching inclusion rules [{input$box_click$name}]: {x$value} ({x$percent})")
+    }
   })
   
   output$summary_table <- gt::render_gt(
