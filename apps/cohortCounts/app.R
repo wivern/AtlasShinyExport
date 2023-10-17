@@ -1,6 +1,7 @@
 library(shiny)
 library(dplyr)
 library(echarts4r)
+library(reactable)
 
 source("read_data.R")
 cohort_name <- readr::read_file(file.path("data", "cohort_name.txt"))
@@ -32,9 +33,16 @@ ui <- fluidPage(
   )),
   
   fluidRow(column(width = 12, textOutput("upper_summary_text"))),
+  
+  fluidRow(column(width = 12,
+    "Having", 
+    tags$div(style="display:inline-block", selectInput("any_all", "", c("any", "all"), selectize = F, width = "80px")),
+    "of selected criteria",
+    tags$div(style="display:inline-block", selectInput("passed_failed", "", c("passed", "failed"), selectize = F, width = "100px"))
+  )),
 
   fluidRow(
-    column(width = 6, gt::gt_output("inclusion_table")),
+    column(width = 6, reactableOutput("inclusion_table")),
     column(width = 6, textOutput("count_in_selected_subset_text"), echarts4rOutput('treemap'))
   ),
   
@@ -44,16 +52,9 @@ ui <- fluidPage(
 server <- function(input, output) {
   
   # when a box on the treemap is clicked this reactive will store the associated IDs as numbers
-  rows_to_highlight <- reactive({
-    if(!isTruthy(input$box_click$name) || input$box_click$name == "None") return(FALSE)
-    as.numeric(stringr::str_split(input$box_click$name, ",")[[1]])
-  })
-  
-  # observeEvent({input$datasource;input$level}, {
-  #   print("running")
-  #   
-  #   print(input$box_click$name)
-  #   print(rows_to_highlight())
+  # rows_to_highlight <- reactive({
+  #   if(!isTruthy(input$box_click$name) || input$box_click$name == "None") return(FALSE)
+  #   as.numeric(stringr::str_split(input$box_click$name, ",")[[1]])
   # })
   
   output$count_in_selected_subset_text <- renderText({
@@ -73,22 +74,40 @@ server <- function(input, output) {
     }
   })
   
-  output$summary_table <- gt::render_gt(
-    app_data[[input$datasource]][[input$level]]$summary_table %>% 
-      gt::gt() %>% 
-      gt::fmt_number(columns = dplyr::matches("count"), decimals = 0)
-  )
+  # output$summary_table <- gt::render_gt(
+  #   app_data[[input$datasource]][[input$level]]$summary_table %>% 
+  #     gt::gt() %>% 
+  #     gt::fmt_number(columns = dplyr::matches("count"), decimals = 0)
+  # )
   
-  output$inclusion_table <- gt::render_gt(
+  output$inclusion_table <- renderReactable({
     app_data[[input$datasource]][[input$level]]$inclusion_table %>% 
-      gt::gt() %>% 
-      gt::fmt_number(columns = dplyr::matches("count"), decimals = 0) %>% 
-      {if (isTruthy(input$box_click$name))
-        gt::tab_style(.,
-          style = list(gt::cell_fill(color = "lightblue")),
-          locations = gt::cells_body(rows = rows_to_highlight())
-        ) else .}
-  )
+      {reactable(., selection = "multiple", onClick = "select", defaultSelected = seq_len(nrow(.)))} 
+  })
+    
+  selected_rows <- reactive(getReactableState("inclusion_table", "selected"))
+  
+      # gt::gt() %>% 
+      # gt::fmt_number(columns = dplyr::matches("count"), decimals = 0) %>% 
+      # {if (isTruthy(input$box_click$name))
+      #   gt::tab_style(.,
+      #     style = list(gt::cell_fill(color = "lightblue")),
+      #     locations = gt::cells_body(rows = rows_to_highlight())
+      #   ) else .}
+  
+  treemap_table <- reactive({
+    # app_data$SYNPUF_110k$person$treemap_table %>% # for testing
+    app_data[[input$datasource]][[input$level]]$treemap_table %>%
+      mutate(ids = stringr::str_replace(name, "None", "0") %>% stringr::str_split(",") %>% lapply(as.integer)) %>% 
+      mutate(include_in_summary = case_when(
+        input$any_all == "any" && input$passed_failed == "passed" ~ purrr::map_lgl(.data$ids, ~any(. %in% selected_rows())),
+        input$any_all == "all" && input$passed_failed == "passed" ~ purrr::map_lgl(.data$ids, ~all(. %in% selected_rows())),
+        input$any_all == "any" && input$passed_failed == "failed" ~ purrr::map_lgl(.data$ids, ~any(!(selected_rows() %in% .))),
+        input$any_all == "all" && input$passed_failed == "failed" ~ purrr::map_lgl(.data$ids, ~all(!(selected_rows() %in% .))),
+        TRUE ~ TRUE
+      ))
+    
+  })
   
   output$treemap <- renderEcharts4r({
     shinyjs::runjs("Shiny.setInputValue('box_click', {name: false})")
@@ -96,16 +115,11 @@ server <- function(input, output) {
     app_data[[input$datasource]][[input$level]]$treemap_table %>% 
       e_charts() %>% 
       e_treemap(roam = F) %>% 
+      e_toolbox_feature(feature = "saveAsImage") %>% 
       # e_on(query = ".", handler = "function(params) {Shiny.setInputValue('box_click', {name: params.name});}") %>% 
       e_on(query = ".", handler = "function(params) {Shiny.setInputValue('box_click', {name: params.name});}", event = "mouseover") %>% 
       e_on(query = ".", handler = "function(params) {Shiny.setInputValue('box_click', {name: false});}", event = "mouseout")
-      
   })
-  
-  # observe({
-  #   req(input$box_click$name)
-  #   print(input$box_click$name)
-  #   })
   
   output$upper_summary_text <- renderText({
     s <- app_data[[input$datasource]][[input$level]]$summary_table 
@@ -113,8 +127,11 @@ server <- function(input, output) {
   })
   
   output$lower_summary_text <- renderText({
-    s <- app_data[[input$datasource]][[input$level]]$summary_table 
-    glue::glue("Final Count: {format(s$final_index_events, big.mark=',', scientific = FALSE)} ({s$percent_included})")
+    denominator <- sum(treemap_table()$value)
+    numerator <- treemap_table() %>% filter(include_in_summary) %>% pull(value) %>% sum()
+    percent_included <- scales::label_percent()(numerator / denominator)
+    # s <- app_data[[input$datasource]][[input$level]]$summary_table 
+    glue::glue("Final Count: {format(numerator, big.mark=',', scientific = FALSE)} ({percent_included})")
   })
 }
 
