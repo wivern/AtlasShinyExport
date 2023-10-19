@@ -1,3 +1,19 @@
+# https://api.ohdsi.org/WebAPI/ir/1747742/report/SYNPUF5PCT?targetId=1787788&outcomeId=1783511
+
+# https://api.ohdsi.org/WebAPI/ir/1747742/report/SYNPUF5PCT?targetId=1787664&outcomeId=1783511
+
+# https://api.ohdsi.org/WebAPI/ir/1747742/report/SYNPUF5PCT?targetId=1787664&outcomeId=1772380
+
+# https://api.ohdsi.org/WebAPI/ir/1747742/report/SYNPUF5PCT?targetId=1783572&outcomeId=1772380
+
+SYNPUF5PCT_targetId1783572_outcomeId1772380
+
+# https://api.ohdsi.org/WebAPI/ir/1747742/report/SYNPUF5PCT?targetId=1783572&outcomeId=1785347
+
+SYNPUF5PCT_targetId1783572_outcomeId1785347
+
+
+
 #incidence rate result example
 # we have one json for every data source, target, outcome pair
 d1 <- '{

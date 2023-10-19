@@ -58,7 +58,7 @@ server <- function(input, output) {
   # })
   
   output$count_in_selected_subset_text <- renderText({
-    if(!isTruthy(input$box_click$name)) return(NULL)
+    if(!isTruthy(input$box_click$name)) return("_") # I'd prefer a "blank" character here.
     req(input$box_click$name)
     
     x <- app_data[[input$datasource]][[input$level]]$treemap_table %>% 
