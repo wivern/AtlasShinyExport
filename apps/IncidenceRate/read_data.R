@@ -2,21 +2,50 @@
 # function to read in app data from saved json files extracted from Atlas/WebAPI
 # `path` argument should point to the folder where the json files are stored
 
+path = "data"
 read_data <- function(path) {
-  require(dplyr)
+  library(dplyr)
   
   # get the list of unique data source keys
-  data_sources <- list.files(path, pattern = ".json$") %>% 
-    stringr::str_remove("_by_(person|event).json$") %>% 
+  filenames <-  list.files(path, pattern = ".json$") %>% 
+    stringr::str_subset("^cohort_definitions.json$", negate = TRUE) 
+  
+  data_sources <- filenames %>% 
+    stringr::str_remove("_targetId.+$") %>% 
     stringr::str_unique()
   
-  # construct a single app_data list
-  app_data <- list()
+  target_ids <- filenames %>% 
+    stringr::str_extract("targetId\\d+") %>%
+    stringr::str_remove("targetId") %>% 
+    stringr::str_unique() %>% 
+    as.integer()
+  
+  outcome_ids <- filenames %>% 
+    stringr::str_extract("outcomeId\\d+") %>%
+    stringr::str_remove("outcomeId") %>% 
+    stringr::str_unique() %>% 
+    as.integer()
+  
+  # check that all combinations of datasource, target, and outcome have been saved
+  
+  df <- expand.grid(data_source = data_sources, target = target_ids, outcome = outcome_ids) %>% 
+    as_tibble() %>% 
+    mutate(filename = glue::glue("{data_source}_targetId{target}_outcomeId{outcome}.json"))
+  
+  missing_files <- setdiff(pull(df, filename), filenames)
+  if (length(missing_files) > 0) {
+    cli::cli_abort("Missing json files with data! \n{paste(missing_files, collapse = ',\n')}")
+  }
+  
+  df <- df %>% 
+    mutate(x = purrr::map(file.path('data', filename), ~jsonlite::read_json(., simplifyVector = FALSE)))
+  
+  a = df[["x"]][[1]]
   
   for (d in data_sources) {
     for (e in c("event", "person")) {
       
-      file_path <- file.path(path, glue::glue("{d}_by_{e}.json"))
+      file_path <- 
       
       if (!file.exists(file_path)) stop(paste(file_path, "cannot be found!"))
       
@@ -35,22 +64,6 @@ read_data <- function(path) {
       app_data[[d]][[e]][["treemap_table"]] <- x$treemapData %>% 
         jsonlite::fromJSON(simplifyVector = FALSE) %>% 
         tidy_treemap_data()
-      
-      # create attrition table: 1, 1&2, 1&2&3, ... etc
-      num_rules <- nrow(app_data[[d]][[e]][["inclusion_table"]])
-      total <- sum(app_data[[d]][[e]][["treemap_table"]]$value)
-      
-      app_data[[d]][[e]][["attrition_table"]] <- purrr::map(seq(num_rules), function(x) {
-          x <- paste(seq(x), collapse = ",")
-          
-          app_data[[d]][[e]][["treemap_table"]] %>%
-            filter(grepl(paste0("^", x), name)) %>%
-            summarise(value = sum(value)) %>%
-            transmute(name = x, n = value)
-        }) %>% 
-        bind_rows() %>% 
-        mutate(pct_remain = n/.env$total) %>% 
-        mutate(pct_diff = ifelse(name == "1", 1 - pct_remain, lag(pct_remain) - pct_remain))
     }
   }
   return(app_data)
@@ -97,8 +110,3 @@ tidy_treemap_data <- function(treemap_data) {
   # return a dataframe with the counts of each partition
   return(dplyr::tibble(name = name2, value = size))
 }
-
-
-
-
-
