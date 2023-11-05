@@ -133,7 +133,15 @@ server <- function(input, output) {
     
     } else if (attritionView() == 1) {
       app_data[[input$datasource]][[input$level]]$attrition_table %>% 
-        reactable()
+        mutate(pct_remain = round(pct_remain, 4),
+               pct_diff = round(pct_remain, 4)) %>% 
+        reactable(sortable = FALSE,
+                  columns = list("ID" = colDef(name = "ID"),
+                                 "Inclusion Rule" = colDef(name = "Inclusion Rule"),
+                                 "Count" = colDef(name = "Count"),
+                                 "pct_remain" = colDef(name = "Percent remaining", format = colFormat(percent = TRUE)),
+                                 "pct_diff" = colDef(name = "Percent difference", format = colFormat(percent = TRUE)))
+        )
     } else {
       stop("There is a problem. attritionView should either be 1 or 0.")
     }

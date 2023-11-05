@@ -50,7 +50,10 @@ read_data <- function(path) {
         }) %>% 
         bind_rows() %>% 
         mutate(pct_remain = n/.env$total) %>% 
-        mutate(pct_diff = ifelse(name == "1", 1 - pct_remain, lag(pct_remain) - pct_remain))
+        mutate(pct_diff = ifelse(name == "1", 1 - pct_remain, lag(pct_remain) - pct_remain)) %>% 
+        mutate(ID = purrr::map_dbl(stringr::str_split(name, ","), ~max(as.numeric(.)))) %>% 
+        left_join(app_data[[d]][[e]][["inclusion_table"]][,1:2], by = "ID") %>% 
+        select(ID, `Inclusion Rule`, Count = n, pct_remain, pct_diff)
     }
   }
   return(app_data)
