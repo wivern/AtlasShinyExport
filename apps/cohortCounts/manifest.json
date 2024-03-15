@@ -16,5 +16,21 @@
 			"sizes": "512x512",
 			"type": "image/png"
 		}
-	]
+	],
+	"metadata": {
+		"appmode": "shiny",
+		"primary_rmd": null,
+		"primary_html": null,
+		"content_category": null,
+		"has_parameters": false
+	},
+	"files": {
+		"app.R": {
+			"checksum": "51951de4093cf74dae2ba278fa6a90b1"
+		},
+		"read_data.R": {
+			"checksum": "80ce93ba54a538eee5fd509260972c3a"
+		}
+	},
+	"users": null
 }
